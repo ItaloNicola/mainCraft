@@ -229,7 +229,7 @@ init_vk(struct vk_program *program)
 	if (load_all_textures(dev))
 		goto destroy_command_pools;
 
-	ret = create_texture_image_views(dev->logical_device, cube->texture_images,
+	ret = create_texture_image_views(dev->logical_device, cube->texture_images, cube->mip_levels,
 									 &cube->texture_images_view, cube->texture_count);
 	if (ret)
 		goto destroy_texture;

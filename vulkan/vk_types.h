@@ -39,6 +39,7 @@ struct vk_vertex_object {
 	VmaAllocation *texture_images_memory;
 	VkImageView *texture_images_view;
 	uint32_t texture_count;
+	uint32_t mip_levels;
 	/* Model positions */
 	VkBuffer *position_buffer;
 	VmaAllocation *position_buffer_memory;

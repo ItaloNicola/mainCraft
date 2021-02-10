@@ -214,6 +214,7 @@ is_device_suitable(VkPhysicalDevice physical_device, struct vk_device *picked_de
 	VkPhysicalDeviceFeatures supported_features;
 	struct vk_cmd_submission cmd_sub = { };
 	struct surface_support surface_support = { };
+	VkFormatProperties format_properties;
 	bool extensions_supported;
 	VkFormat depth_format;
 
@@ -239,6 +240,10 @@ is_device_suitable(VkPhysicalDevice physical_device, struct vk_device *picked_de
 
 	vkGetPhysicalDeviceFeatures(physical_device, &supported_features);
 	if(!supported_features.samplerAnisotropy)
+		goto surface_support_cleanup;
+
+    vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_R8G8B8A8_SRGB, &format_properties);
+	if(!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
 		goto surface_support_cleanup;
 
 	vkGetPhysicalDeviceProperties(physical_device, device_properties);

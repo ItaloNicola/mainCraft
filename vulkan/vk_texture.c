@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "VulkanMemoryAllocator/vk_mem_alloc.h"
 #include "vk_texture.h"
@@ -44,7 +45,7 @@ calculate_staging_buffer_size(FILE *image_files[], uint32_t images_count)
 }
 
 int
-create_texture_images(struct vk_device *dev, char *image_names[], uint32_t images_count,
+create_texture_images(struct vk_device *dev, char *image_names[], uint32_t images_count, uint32_t *mip_levels,
 					  VkImage **texture_image, VmaAllocation **texture_image_memory)
 {
 	VmaAllocation *local_texture_images_memory, staging_buffer_memory;
@@ -52,6 +53,7 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 	VkDeviceSize staging_buffer_size;
 	FILE *image_files[images_count];
 	VkImage *local_texture_images;
+	uint32_t local_mip_level = 1;
 	VkBuffer staging_buffer;
 	VkResult result;
 	stbi_uc* pixels;
@@ -104,12 +106,14 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 			break;
 		}
 
+		local_mip_level = (uint32_t) floor(log2(max(tex_width, tex_height))) + 1;
+
 		memcpy(data, pixels, tex_width * tex_height * 4);
 
 		stbi_image_free(pixels);
 
 		ret = create_gpu_image(dev, staging_buffer_memory, staging_buffer, data, tex_width, tex_height,
-							   &local_texture_images_memory[i], &local_texture_images[i]);
+							   local_mip_level, &local_texture_images_memory[i], &local_texture_images[i]);
 		if (ret)
 			break;
 	}
@@ -119,6 +123,7 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 		goto unmap_staging_buffer;
 	}
 
+	*mip_levels = local_mip_level;
 	*texture_image = local_texture_images;
 	*texture_image_memory = local_texture_images_memory;
 
@@ -151,7 +156,7 @@ destroy_texture_image_views(VkDevice logical_device, VkImageView *texture_images
  * directly, we need a imageView to access it.
  * */
 int
-create_texture_image_views(VkDevice logical_device, VkImage *texture_image,
+create_texture_image_views(VkDevice logical_device, VkImage *texture_image, uint32_t mip_levels,
 						   VkImageView **texture_images_view, uint32_t images_count)
 {
 	VkImageView *local_image_view;
@@ -165,7 +170,7 @@ create_texture_image_views(VkDevice logical_device, VkImage *texture_image,
 
 	for (i = 0; i < images_count; i++) {
 		local_image_view[i] = create_image_view(logical_device, texture_image[i],
-												VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+												VK_FORMAT_R8G8B8A8_SRGB, mip_levels, VK_IMAGE_ASPECT_COLOR_BIT);
 		if (local_image_view[i] == VK_NULL_HANDLE) {
 			print_error("Failed to create texture image view!");
 			break;
@@ -207,7 +212,7 @@ create_texture_sampler(VkDevice logical_device, VkPhysicalDeviceProperties *devi
 		.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
 		.mipLodBias = 0.0f,
 		.minLod = 0.0f,
-		.maxLod = 0.0f
+		.maxLod = VK_LOD_CLAMP_NONE
 	};
 
 	result = vkCreateSampler(logical_device, &sampler_info, NULL, &texture_sampler);
@@ -230,7 +235,7 @@ load_cube_textures(struct vk_device *dev)
 		TEX_DIR "sand.png",	TEX_DIR "coarse_dirt.png", TEX_DIR "grass_block_side.png"
 	};
 
-	ret = create_texture_images(dev, textures_names, array_size(textures_names),
+	ret = create_texture_images(dev, textures_names, array_size(textures_names), &cube->mip_levels,
 								&cube->texture_images, &cube->texture_images_memory);
 
 	if (!ret)

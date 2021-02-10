@@ -375,7 +375,7 @@ create_depth_resources(struct vk_device *dev, struct vk_render *render, VkExtent
 	VkImage depth_image;
 	int ret = -1;
 
-	ret = create_image(dev, swapchain_extent.width, swapchain_extent.height, render->depth_format,
+	ret = create_image(dev, swapchain_extent.width, swapchain_extent.height, 1, render->depth_format,
 					   VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 					   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &depth_image, &depth_image_memory);
 	if (ret) {
@@ -383,7 +383,8 @@ create_depth_resources(struct vk_device *dev, struct vk_render *render, VkExtent
 		goto return_error;
 	}
 
-	depth_image_view = create_image_view(dev->logical_device, depth_image, render->depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+	depth_image_view = create_image_view(dev->logical_device, depth_image, render->depth_format,
+										 1, VK_IMAGE_ASPECT_DEPTH_BIT);
 	if (depth_image_view == VK_NULL_HANDLE) {
 		print_error("Failed to create depth buffer image view!");
 		goto destroy_depth_image;

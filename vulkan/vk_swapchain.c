@@ -154,7 +154,7 @@ create_swapchain_image_views(VkDevice logical_device, struct vk_swapchain *swapc
 	for (i = 0; i < swapchain->images_count; i++) {
 		swapchain->image_views[i] = create_image_view(logical_device, swapchain->images[i],
 													  swapchain->state.surface_format.format,
-													  VK_IMAGE_ASPECT_COLOR_BIT);
+													  1, VK_IMAGE_ASPECT_COLOR_BIT);
 		if (!swapchain->image_views[i]) {
 			pprint_error("Failed to create %d/%u image view!", i, swapchain->images_count);
 			break;

@@ -3,7 +3,7 @@ A C version of the 'Minecraft in 500 lines of python'.
 
 ## Current state
 
-![plot](./assets/screenshots/maincraft-01-26-2021.png)
+![plot](./assets/screenshots/maincraft-02-28-2021.png)
 
 ## Requirements
 
