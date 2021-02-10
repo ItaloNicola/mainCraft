@@ -11,7 +11,7 @@ image_views_cleanup(VkDevice logical_device, VkImageView *image_views, uint32_t 
 
 int
 create_image(struct vk_device *dev, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-			VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* image, VkDeviceMemory* image_memory);
+			 VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* image, VmaAllocation *image_alloc);
 
 int
 transition_image_layout(struct vk_cmd_submission *cmd_sub, VkImage image, VkFormat format,
@@ -21,8 +21,8 @@ int
 copy_buffer_to_image(struct vk_cmd_submission *cmd_sub, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 int
-create_gpu_image(struct vk_device *dev, VkDeviceMemory staging_buffer_memory, VkBuffer staging_buffer,
+create_gpu_image(struct vk_device *dev, VmaAllocation staging_buffer_alloc, VkBuffer staging_buffer,
 				 void *staging_buffer_data, int tex_width, int tex_height,
-				 VkDeviceMemory *texture_image_memory, VkImage *texture_image);
+				 VmaAllocation *texture_image_alloc, VkImage *texture_image);
 
 #endif //VK_IMAGE_VIEW_H

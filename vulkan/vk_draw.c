@@ -78,16 +78,16 @@ sync_objects_cleanup(VkDevice logical_device, struct vk_draw_sync *sync)
 }
 
 void
-update_view_projection(const VkDevice logical_device, struct view_projection *camera, uint32_t current_image)
+update_view_projection(const VmaAllocator mem_allocator, struct view_projection *camera, uint32_t current_image)
 {
 	mat4 view_proj;
 	void* data;
 
 	glm_mat4_mulN((mat4 *[]){ &camera->proj, &camera->view }, 2, view_proj);
 
-	vkMapMemory(logical_device, camera->buffers_memory[current_image], 0, sizeof(mat4), 0, &data);
+	vmaMapMemory(mem_allocator, camera->buffers_memory[current_image], &data);
 	memcpy(data, &view_proj, sizeof(mat4));
-	vkUnmapMemory(logical_device, camera->buffers_memory[current_image]);
+	vmaUnmapMemory(mem_allocator, camera->buffers_memory[current_image]);
 }
 
 int

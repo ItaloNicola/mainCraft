@@ -2,14 +2,14 @@ TARGET_EXEC ?= mainCraft.run
 BUILD_DIR ?= ./build
 
 PROJ_DIRS ?= opengl vulkan common
-SOURCES := $(wildcard $(addsuffix /*.c,$(PROJ_DIRS))) main.c
+SOURCES := $(wildcard $(addsuffix /*.c,$(PROJ_DIRS))) $(wildcard $(addsuffix /*.cpp,$(PROJ_DIRS))) main.c
 
 OBJS := $(SOURCES:%=$(BUILD_DIR)/%.o)
 
 HEADER_DIRS += $(PROJ_DIRS) /usr/include/freetype2/ libs
 INCLUDES += $(addprefix -I,$(HEADER_DIRS))
 
-LIB_NAMES ?= ftgl GL glfw vulkan m stb
+LIB_NAMES ?= ftgl GL glfw vulkan m stb stdc++
 LD_LIBS += $(addprefix -l,$(LIB_NAMES))
 
 CFLAGS += -Wall -Wcast-align -Wunreachable-code
@@ -26,6 +26,10 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) shaders
 $(BUILD_DIR)/%.c.o: %.c
 	$(MKDIR_P) $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ $(MACROS)
+
+$(BUILD_DIR)/%.cpp.o: %.cpp
+	$(MKDIR_P) $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BUILD_DIR)/%.s.o: %.s
 	$(MKDIR_P) $(dir $@)

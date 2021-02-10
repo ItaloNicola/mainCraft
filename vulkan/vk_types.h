@@ -7,6 +7,7 @@
 #include <cglm/cglm.h>
 #include <stdbool.h>
 
+#include "VulkanMemoryAllocator/vk_mem_alloc.h"
 #include "vk_constants.h"
 #include "types.h"
 
@@ -16,7 +17,7 @@ enum family_indices { graphics = 0, transfer, compute, protectedBit, sparseBindi
 struct view_projection {
 	VkBuffer *buffers;
 	uint32_t buffer_count;
-	VkDeviceMemory *buffers_memory;
+	VmaAllocation *buffers_memory;
 	uint32_t buffer_memory_count;
 	mat4 proj;
 	mat4 view;
@@ -25,24 +26,24 @@ struct view_projection {
 struct vk_vertex_object {
 	/* Vertex resources */
 	VkBuffer vertex_buffer;
-	VkDeviceMemory vertex_buffer_memory;
+	VmaAllocation vertex_buffer_memory;
 	struct vertex *vertices;
 	uint64_t vertices_count;
 	/* Index resources */
 	uint16_t *indices;
 	uint64_t indices_count;
 	VkBuffer index_buffer;
-	VkDeviceMemory index_buffer_memory;
+	VmaAllocation index_buffer_memory;
 	/* Textures resources */
 	VkImage *texture_images;
-	VkDeviceMemory *texture_images_memory;
+	VmaAllocation *texture_images_memory;
 	VkImageView *texture_images_view;
 	uint32_t texture_count;
 	/* Model positions */
 	VkBuffer *position_buffer;
-	VkDeviceMemory *position_buffer_memory;
+	VmaAllocation *position_buffer_memory;
 	VkBuffer staging_position_buffer;
-	VkDeviceMemory staging_position_buffer_memory;
+	VmaAllocation staging_position_buffer_memory;
 	uint32_t position_count;
 	uint32_t position_buffer_count;
 };
@@ -88,7 +89,7 @@ struct vk_render {
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkSampler texture_sampler;
 	VkImage depth_image;
-	VkDeviceMemory depth_image_memory;
+	VmaAllocation depth_image_memory;
 	VkImageView depth_image_view;
 	VkFormat depth_format;
 };
@@ -120,6 +121,7 @@ struct vk_swapchain {
 struct vk_device {
 	VkPhysicalDevice physical_device;
 	VkDevice logical_device;
+	VmaAllocator mem_allocator;
 	struct vk_cmd_submission cmd_submission;
 	struct vk_swapchain swapchain;
 	struct vk_render render;

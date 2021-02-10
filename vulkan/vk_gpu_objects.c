@@ -27,7 +27,7 @@ create_index_buffer(struct vk_device *dev, struct vk_vertex_object *vertex_objec
 int
 create_cubes_position_buffers(struct vk_device *dev, struct vk_vertex_object *vertex_object, uint32_t swapchain_images_count)
 {
-	VkDeviceMemory *local_buffer_memory;
+	VmaAllocation *local_buffer_memory;
 	VkBuffer *local_buffer;
 	int i, ret;
 
@@ -37,7 +37,7 @@ create_cubes_position_buffers(struct vk_device *dev, struct vk_vertex_object *ve
 		goto return_error;
 	}
 
-	local_buffer_memory = malloc(sizeof(VkDeviceMemory) * swapchain_images_count);
+	local_buffer_memory = malloc(sizeof(VmaAllocation) * swapchain_images_count);
 	if (!local_buffer_memory) {
 		print_error("Failed to allocate cubes position buffers vector");
 		goto free_local_buffer;
@@ -74,11 +74,10 @@ return_error:
 int
 generate_terrain_buffer(struct vk_device *dev, fnl_state *noise, struct vk_vertex_object *cube)
 {
-	VkDeviceSize position_size = 280 * 280 * sizeof(vec3);
 	VkResult result;
 	void *data;
 
-	result = vkMapMemory(dev->logical_device, cube->staging_position_buffer_memory, 0, position_size, 0, &data);
+	result = vmaMapMemory(dev->mem_allocator, cube->staging_position_buffer_memory, &data);
 	if (result != VK_SUCCESS) {
 		print_error("Failed to map the position staging buffer");
 		return -1;
@@ -86,7 +85,7 @@ generate_terrain_buffer(struct vk_device *dev, fnl_state *noise, struct vk_verte
 
 	generate_terrain(data, noise, -140, -140, 140, 140);
 
-	vkUnmapMemory(dev->logical_device, cube->staging_position_buffer_memory);
+	vmaUnmapMemory(dev->mem_allocator, cube->staging_position_buffer_memory);
 
 	cube->position_count = 280 * 280;
 
@@ -98,7 +97,7 @@ create_vp_ubo_buffers(struct vk_device *dev, struct view_projection *vp)
 {
 	struct vk_swapchain *swapchain = &dev->swapchain;
 	VkDeviceSize buffer_size = sizeof(mat4);
-	VkDeviceMemory *local_buffer_memory;
+	VmaAllocation *local_buffer_memory;
 	VkBuffer *local_buffer;
 	size_t i, ret;
 
@@ -108,7 +107,7 @@ create_vp_ubo_buffers(struct vk_device *dev, struct view_projection *vp)
 		return -1;
 	}
 
-	local_buffer_memory = malloc(sizeof(VkDeviceMemory) * swapchain->images_count);
+	local_buffer_memory = malloc(sizeof(VmaAllocation) * swapchain->images_count);
 	if (!local_buffer_memory) {
 		print_error("Failed to allocate view-projection uniform buffer memory");
 		free(vp->buffers);
@@ -116,7 +115,7 @@ create_vp_ubo_buffers(struct vk_device *dev, struct view_projection *vp)
 	}
 
 	/* We need create several(equal to the swap chains) because we have
-	 * Several swap chain buffer on the fly at same time and we need
+	 * several swapchain buffers on the fly at same time and we need
 	 * a uniform buffer with View Projection to each frame.
 	 * */
 	for (i = 0; i < swapchain->images_count; i++) {
@@ -139,14 +138,12 @@ create_vp_ubo_buffers(struct vk_device *dev, struct view_projection *vp)
 }
 
 void
-destroy_buffer_vector(struct vk_device *dev, VkBuffer *buffers, VkDeviceMemory *buffers_memory, uint32_t buffer_count)
+destroy_buffer_vector(struct vk_device *dev, VkBuffer *buffers, VmaAllocation *buffers_memory, uint32_t buffer_count)
 {
 	int i;
 
-	for (i = 0; i < buffer_count; i++) {
-		vkDestroyBuffer(dev->logical_device, buffers[i], NULL);
-		vkFreeMemory(dev->logical_device, buffers_memory[i], NULL);
-	}
+	for (i = 0; i < buffer_count; i++)
+		vmaDestroyBuffer(dev->mem_allocator, buffers[i], buffers_memory[i]);
 
 	free(buffers);
 	free(buffers_memory);

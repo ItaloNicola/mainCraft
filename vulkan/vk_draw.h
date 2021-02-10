@@ -12,7 +12,7 @@ void
 sync_objects_cleanup(VkDevice logical_device, struct vk_draw_sync *sync);
 
 void
-update_view_projection(const VkDevice logical_device, struct view_projection *camera, uint32_t current_image);
+update_view_projection(const VmaAllocator mem_allocator, struct view_projection *camera, uint32_t current_image);
 
 int
 acquire_swapchain_image(struct vk_program *program, uint8_t current_frame, uint32_t *imageIndex);

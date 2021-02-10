@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "VulkanMemoryAllocator/vk_mem_alloc.h"
 #include "vk_texture.h"
 #include "vk_buffer.h"
 #include "vk_image.h"
@@ -9,15 +10,13 @@
 #define TEX_DIR "assets/textures/"
 
 void
-destroy_texture_images(struct vk_device *dev, VkDeviceMemory *texture_image_memory,
+destroy_texture_images(struct vk_device *dev, VmaAllocation *texture_image_memory,
 					   VkImage *texture_image, uint32_t images_count)
 {
 	int i;
 
-	for (i = 0; i < images_count; i++) {
-		vkDestroyImage(dev->logical_device, texture_image[i], NULL);
-		vkFreeMemory(dev->logical_device, texture_image_memory[i], NULL);
-	}
+	for (i = 0; i < images_count; i++)
+		vmaDestroyImage(dev->mem_allocator, texture_image[i], texture_image_memory[i]);
 
 	free(texture_image_memory);
 	free(texture_image);
@@ -46,9 +45,9 @@ calculate_staging_buffer_size(FILE *image_files[], uint32_t images_count)
 
 int
 create_texture_images(struct vk_device *dev, char *image_names[], uint32_t images_count,
-					 VkImage **texture_image, VkDeviceMemory **texture_image_memory)
+					  VkImage **texture_image, VmaAllocation **texture_image_memory)
 {
-	VkDeviceMemory *local_texture_images_memory, staging_buffer_memory;
+	VmaAllocation *local_texture_images_memory, staging_buffer_memory;
 	int tex_width, tex_height, tex_channels, i, ret = -1;
 	VkDeviceSize staging_buffer_size;
 	FILE *image_files[images_count];
@@ -79,7 +78,7 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 	if (ret)
 		goto close_files;
 
-	result = vkMapMemory(dev->logical_device, staging_buffer_memory, 0, staging_buffer_size, 0, &data);
+	result = vmaMapMemory(dev->mem_allocator, staging_buffer_memory, &data);
 	if (result != VK_SUCCESS) {
 		print_error("Failed to map buffer to system memory!");
 		goto destoy_staging_buffer;
@@ -91,7 +90,7 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 		goto unmap_staging_buffer;
 	}
 
-	local_texture_images_memory = malloc(sizeof(VkDeviceMemory) * images_count);
+	local_texture_images_memory = malloc(sizeof(VmaAllocation) * images_count);
 	if (!local_texture_images_memory) {
 		print_error("Failed to allocate texture images memory vector!");
 		free(local_texture_images);
@@ -126,10 +125,9 @@ create_texture_images(struct vk_device *dev, char *image_names[], uint32_t image
 	ret = 0;
 
 unmap_staging_buffer:
-	vkUnmapMemory(dev->logical_device, staging_buffer_memory);
+	vmaUnmapMemory(dev->mem_allocator, staging_buffer_memory);
 destoy_staging_buffer:
-	vkDestroyBuffer(dev->logical_device, staging_buffer, NULL);
-	vkFreeMemory(dev->logical_device, staging_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, staging_buffer, staging_buffer_memory);
 close_files:
 	for (i = 0; i < images_count && image_files[i]; i++)
 		fclose(image_files[i]);

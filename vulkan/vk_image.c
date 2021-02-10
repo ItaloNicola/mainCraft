@@ -47,10 +47,8 @@ image_views_cleanup(VkDevice logical_device, VkImageView *image_views, uint32_t 
 
 int
 create_image(struct vk_device *dev, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-			VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* image, VkDeviceMemory* image_memory)
+			 VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* image, VmaAllocation *image_memory)
 {
-	VkMemoryRequirements mem_requirements;
-	int64_t mem_type;
 	VkResult result;
 
 	VkImageCreateInfo image_info = {
@@ -73,46 +71,17 @@ create_image(struct vk_device *dev, uint32_t width, uint32_t height, VkFormat fo
 	else
 		image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	result = vkCreateImage(dev->logical_device, &image_info, NULL, image);
-	if (result != VK_SUCCESS) {
-		print_error("failed to create image!");
-		goto return_error;
-	}
-
-	vkGetImageMemoryRequirements(dev->logical_device, *image, &mem_requirements);
-
-	mem_type = find_memory_type(dev->physical_device, mem_requirements.memoryTypeBits, properties);
-	if (mem_type == -1) {
-		print_error("Failed to find suitable memory type!");
-		goto destroy_image;
-	}
-
-	VkMemoryAllocateInfo alloc_info = {
-		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		.allocationSize = mem_requirements.size,
-		.memoryTypeIndex = (uint32_t) mem_type
+	VmaAllocationCreateInfo alloc_info = {
+		.requiredFlags = properties
 	};
 
-	result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL, image_memory);
+	result = vmaCreateImage(dev->mem_allocator, &image_info, &alloc_info, image, image_memory, NULL);
 	if (result != VK_SUCCESS) {
-		print_error("failed to allocate image memory!");
-		goto destroy_image;
-	}
-
-	result = vkBindImageMemory(dev->logical_device, *image, *image_memory, 0);
-	if (result != VK_SUCCESS) {
-		print_error("failed to allocate image memory!");
-		goto destroy_image_memory;
+		print_error("failed to create image!");
+		return -1;
 	}
 
 	return 0;
-
-destroy_image_memory:
-	vkFreeMemory(dev->logical_device, *image_memory, NULL);
-destroy_image:
-	vkDestroyImage(dev->logical_device, *image, NULL);
-return_error:
-	return -1;
 }
 
 int
@@ -220,11 +189,11 @@ copy_buffer_to_image(struct vk_cmd_submission *cmd_sub, VkBuffer buffer, VkImage
 }
 
 int
-create_gpu_image(struct vk_device *dev, VkDeviceMemory staging_buffer_memory, VkBuffer staging_buffer,
+create_gpu_image(struct vk_device *dev, VmaAllocation staging_buffer_memory, VkBuffer staging_buffer,
 				 void *staging_buffer_data, int tex_width, int tex_height,
-				 VkDeviceMemory *texture_image_memory, VkImage *texture_image)
+				 VmaAllocation *texture_image_memory, VkImage *texture_image)
 {
-	VkDeviceMemory local_texture_image_memory;
+	VmaAllocation local_texture_image_memory;
 	VkImage local_texture_image;
 	int ret;
 
@@ -263,8 +232,7 @@ create_gpu_image(struct vk_device *dev, VkDeviceMemory staging_buffer_memory, Vk
 	return 0;
 
 destroy_image:
-	vkDestroyImage(dev->logical_device, local_texture_image, NULL);
-	vkFreeMemory(dev->logical_device, local_texture_image_memory, NULL);
+	vmaDestroyImage(dev->mem_allocator, local_texture_image, local_texture_image_memory);
 return_error:
 	return ret;
 }

@@ -5,27 +5,10 @@
 #include "utils.h"
 
 
-int64_t
-find_memory_type(VkPhysicalDevice physical_device, uint32_t type_filter, VkMemoryPropertyFlags prop)
-{
-	VkPhysicalDeviceMemoryProperties mem_prop;
-	uint32_t i;
-
-	vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_prop);
-
-	for (i = 0; i < mem_prop.memoryTypeCount; i++)
-		if ((type_filter & (1 << i)) && (mem_prop.memoryTypes[i].propertyFlags & prop) == prop)
-			return i;
-
-	return -1;
-}
-
 int
 create_buffer(struct vk_device *dev, VkDeviceSize size, VkBufferUsageFlags usage,
-			 VkMemoryPropertyFlags properties, VkBuffer *buffer, VkDeviceMemory *buffer_memory)
+			  VkMemoryPropertyFlags properties, VkBuffer *buffer, VmaAllocation *buffer_memory)
 {
-	VkMemoryRequirements mem_requirements;
-	int64_t mem_type;
 	VkResult result;
 
 	VkBufferCreateInfo buffer_info = {
@@ -35,45 +18,17 @@ create_buffer(struct vk_device *dev, VkDeviceSize size, VkBufferUsageFlags usage
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE
 	};
 
-	result = vkCreateBuffer(dev->logical_device, &buffer_info, NULL, buffer);
-	if (result != VK_SUCCESS) {
-		print_error("Failed to create buffer!");
-		goto return_error;
-	}
-
-	vkGetBufferMemoryRequirements(dev->logical_device, *buffer, &mem_requirements);
-	mem_type = find_memory_type(dev->physical_device, mem_requirements.memoryTypeBits, properties);
-	if (mem_type == -1) {
-		print_error("Failed to find suitable memory type!");
-		goto destroy_buffer;
-	}
-
-	VkMemoryAllocateInfo alloc_info = {
-		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		.allocationSize = mem_requirements.size,
-		.memoryTypeIndex = (uint32_t) mem_type
+	VmaAllocationCreateInfo alloc_info = {
+		.requiredFlags = properties
 	};
 
-	result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL, buffer_memory);
+	result = vmaCreateBuffer(dev->mem_allocator, &buffer_info, &alloc_info, buffer, buffer_memory, NULL);
 	if (result != VK_SUCCESS) {
-		print_error("Failed to allocate buffer memory!");
-		goto destroy_buffer;
-	}
-
-	result = vkBindBufferMemory(dev->logical_device, *buffer, *buffer_memory, 0);
-	if (result != VK_SUCCESS) {
-		print_error("Failed to bind buffer with buffer memory!");
-		goto free_memory_buffer;
+		print_error("Failed to create buffer!");
+		return -1;
 	}
 
 	return 0;
-
-free_memory_buffer:
-	vkFreeMemory(dev->logical_device, *buffer_memory, NULL);
-destroy_buffer:
-	vkDestroyBuffer(dev->logical_device, *buffer, NULL);
-return_error:
-	return -1;
 }
 
 int
@@ -109,29 +64,29 @@ copy_buffer(struct vk_cmd_submission *cmd_sub, VkBuffer src_buffer, VkBuffer dst
 }
 
 int
-create_gpu_buffer(struct vk_device *dev, VkDeviceMemory *buffer_memory, VkBuffer *buffer,
+create_gpu_buffer(struct vk_device *dev, VmaAllocation *buffer_memory, VkBuffer *buffer,
 				  void *buffer_data, VkDeviceSize buffer_size, VkBufferUsageFlags usage)
 {
-	VkDeviceMemory staging_buffer_memory, local_buffer_memory;
+	VmaAllocation staging_buffer_memory, local_buffer_memory;
 	VkBuffer staging_buffer, local_buffer;
 	VkResult result;
 	void *data;
 	int ret;
 
 	ret = create_buffer(dev, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-					   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-					   &staging_buffer, &staging_buffer_memory);
+					    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+					    &staging_buffer, &staging_buffer_memory);
 	if (ret)
 		goto return_error;
 
-	result = vkMapMemory(dev->logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
+	result = vmaMapMemory(dev->mem_allocator, staging_buffer_memory, &data);
 	if (result != VK_SUCCESS) {
 		print_error("Failed to map buffer to system memory!");
 		goto destoy_staging_buffer;
 	}
 
 	memcpy(data, buffer_data, (size_t) buffer_size);
-	vkUnmapMemory(dev->logical_device, staging_buffer_memory);
+	vmaUnmapMemory(dev->mem_allocator, staging_buffer_memory);
 
 	ret = create_buffer(dev, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
 					   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &local_buffer, &local_buffer_memory);
@@ -139,8 +94,7 @@ create_gpu_buffer(struct vk_device *dev, VkDeviceMemory *buffer_memory, VkBuffer
 		goto destoy_staging_buffer;
 
 	if (copy_buffer(&dev->cmd_submission, staging_buffer, local_buffer, buffer_size)) {
-		vkDestroyBuffer(dev->logical_device, local_buffer, NULL);
-		vkFreeMemory(dev->logical_device, local_buffer_memory, NULL);
+		vmaDestroyBuffer(dev->mem_allocator, local_buffer, local_buffer_memory);
 		goto destoy_staging_buffer;
 	}
 
@@ -150,8 +104,7 @@ create_gpu_buffer(struct vk_device *dev, VkDeviceMemory *buffer_memory, VkBuffer
 	ret = 0;
 
 destoy_staging_buffer:
-	vkDestroyBuffer(dev->logical_device, staging_buffer, NULL);
-	vkFreeMemory(dev->logical_device, staging_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, staging_buffer, staging_buffer_memory);
 return_error:
 	return ret;
 }

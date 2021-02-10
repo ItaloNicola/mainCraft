@@ -20,6 +20,6 @@ int
 generate_terrain_buffer(struct vk_device *dev, fnl_state *noise, struct vk_vertex_object *cube);
 
 void
-destroy_buffer_vector(struct vk_device *dev, VkBuffer *buffers, VkDeviceMemory *buffers_memory, uint32_t buffer_count);
+destroy_buffer_vector(struct vk_device *dev, VkBuffer *buffers, VmaAllocation *buffers_memory, uint32_t buffer_count);
 
 #endif //VK_GPU_OBJECTS_H

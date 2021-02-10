@@ -9,7 +9,7 @@ int
 load_all_textures(struct vk_device *dev);
 
 void
-destroy_texture_images(struct vk_device *dev, VkDeviceMemory *texture_image_memory,
+destroy_texture_images(struct vk_device *dev, VmaAllocation *texture_image_mem,
 					   VkImage *texture_image, uint32_t images_count);
 int
 create_texture_image_views(VkDevice logical_device, VkImage *texture_image,

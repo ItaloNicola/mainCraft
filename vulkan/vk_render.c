@@ -370,7 +370,7 @@ framebuffers_cleanup(const VkDevice logical_device, VkFramebuffer *framebuffers,
 int
 create_depth_resources(struct vk_device *dev, struct vk_render *render, VkExtent2D swapchain_extent)
 {
-	VkDeviceMemory depth_image_memory;
+	VmaAllocation depth_image_memory;
 	VkImageView depth_image_view;
 	VkImage depth_image;
 	int ret = -1;
@@ -396,8 +396,7 @@ create_depth_resources(struct vk_device *dev, struct vk_render *render, VkExtent
 	return 0;
 
 destroy_depth_image:
-	vkDestroyImage(dev->logical_device, depth_image, NULL);
-	vkFreeMemory(dev->logical_device, depth_image_memory, NULL);
+	vmaDestroyImage(dev->mem_allocator, depth_image, depth_image_memory);
 return_error:
 	return ret;
 }

@@ -1,6 +1,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "vk_mem_alloc_wrapper.h"
 #include "vk_resource_manager.h"
 #include "vk_logical_device.h"
 #include "vk_command_buffer.h"
@@ -75,8 +76,7 @@ destroy_vp_buffers:
 destroy_framebuffers:
 	framebuffers_cleanup(dev->logical_device, render->swapChain_framebuffers, render->framebuffer_count);
 destroy_depth_resources:
-	vkDestroyImage(dev->logical_device, render->depth_image, NULL);
-	vkFreeMemory(dev->logical_device, render->depth_image_memory, NULL);
+	vmaDestroyImage(dev->mem_allocator, render->depth_image, render->depth_image_memory);
 	vkDestroyImageView(dev->logical_device, render->depth_image_view, NULL);
 destroy_graphics_pipeline:
 	vkDestroyPipeline(dev->logical_device, render->graphics_pipeline, NULL);
@@ -109,8 +109,7 @@ destroy_render_and_presentation_infra(struct vk_device *dev)
 	vkDestroyPipelineLayout(dev->logical_device, render->pipeline_layout, NULL);
 	vkDestroyRenderPass(dev->logical_device, dev->render.render_pass, NULL);
 	/* Destroy depth resources */
-	vkDestroyImage(dev->logical_device, render->depth_image, NULL);
-	vkFreeMemory(dev->logical_device, render->depth_image_memory, NULL);
+	vmaDestroyImage(dev->mem_allocator, render->depth_image, render->depth_image_memory);
 	vkDestroyImageView(dev->logical_device, render->depth_image_view, NULL);
 
 	/* Cleanup swapchain resources*/
@@ -214,8 +213,15 @@ init_vk(struct vk_program *program)
 	if (create_logical_device(dev))
 		goto destroy_surface_support;
 
-	if (create_command_pools(dev))
+
+	result = init_vulkan_memory_allocator(program);
+	if (result != VK_SUCCESS) {
+		print_error("Failed to init the vulkan memory allocator!");
 		goto destroy_device;
+	}
+
+	if (create_command_pools(dev))
+		goto destroy_memory_allocator;
 
 	if (create_command_buffers(dev, dev->swapchain.support.capabilities.minImageCount + 1))
 		goto destroy_command_pools;
@@ -288,18 +294,15 @@ init_vk(struct vk_program *program)
 	return 0;
 
 destroy_index_shader:
-	vkDestroyBuffer(dev->logical_device, cube->index_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->index_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, cube->index_buffer, cube->index_buffer_memory);
 destroy_vertex_shader:
-	vkDestroyBuffer(dev->logical_device, cube->vertex_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->vertex_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, cube->vertex_buffer, cube->vertex_buffer_memory);
 destroy_render_and_presentation_infra:
 	destroy_render_and_presentation_infra(dev);
 destroy_cubes_position_buffers:
 	destroy_buffer_vector(dev, cube->position_buffer, cube->position_buffer_memory, dev->swapchain.images_count);
 destroy_cube_staging_buffer:
-	vkDestroyBuffer(dev->logical_device, cube->staging_position_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->staging_position_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, cube->staging_position_buffer, cube->staging_position_buffer_memory);
 destroy_descriptor_set_layout:
 	vkDestroyDescriptorSetLayout(dev->logical_device, dev->render.descriptor_set_layout, NULL);
 destroy_texture_sampler:
@@ -311,6 +314,8 @@ destroy_texture:
 destroy_command_pools:
 	cleanup_command_pools(dev->logical_device, dev->cmd_submission.command_pools);
 	free_command_buffer_vector(dev->cmd_submission.cmd_buffers);
+destroy_memory_allocator:
+	vmaDestroyAllocator(dev->mem_allocator);
 destroy_device:
 	vkDestroyDevice(dev->logical_device, NULL);
 destroy_surface_support:
@@ -335,14 +340,11 @@ vk_cleanup(struct vk_program *program)
 	sync_objects_cleanup(dev->logical_device, &dev->draw_sync);
 
 	/* Destroy vertex and index buffer and buffer memory */
-	vkDestroyBuffer(dev->logical_device, cube->index_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->index_buffer_memory, NULL);
-	vkDestroyBuffer(dev->logical_device, cube->vertex_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->vertex_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, cube->index_buffer, cube->index_buffer_memory);
+	vmaDestroyBuffer(dev->mem_allocator, cube->vertex_buffer, cube->vertex_buffer_memory);
 	/* Destroy buffer position vectors*/
 	destroy_buffer_vector(dev, cube->position_buffer, cube->position_buffer_memory, dev->swapchain.images_count);
-	vkDestroyBuffer(dev->logical_device, cube->staging_position_buffer, NULL);
-	vkFreeMemory(dev->logical_device, cube->staging_position_buffer_memory, NULL);
+	vmaDestroyBuffer(dev->mem_allocator, cube->staging_position_buffer, cube->staging_position_buffer_memory);
 
 	/* clean texture resources */
 	vkDestroySampler(dev->logical_device, render->texture_sampler, NULL);
@@ -357,6 +359,8 @@ vk_cleanup(struct vk_program *program)
 	vkDestroyDescriptorSetLayout(dev->logical_device, dev->render.descriptor_set_layout, NULL);
 
 	surface_support_cleanup(&dev->swapchain.support);
+
+	vmaDestroyAllocator(dev->mem_allocator);
 
 	vkDestroyDevice(dev->logical_device, NULL);
 

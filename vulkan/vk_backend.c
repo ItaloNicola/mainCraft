@@ -29,7 +29,7 @@ vk_main_loop(struct vk_program *program)
 		if (ret == -1)
 			break;
 
-		update_view_projection(dev->logical_device, camera, imageIndex);
+		update_view_projection(dev->mem_allocator, camera, imageIndex);
 
 		ret = draw_frame(program, current_frame, imageIndex);
 		if (ret)
