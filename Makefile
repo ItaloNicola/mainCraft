@@ -2,7 +2,7 @@ TARGET_EXEC ?= mainCraft.run
 BUILD_DIR ?= ./build
 
 PROJ_DIRS ?= opengl vulkan common
-SOURCES := $(wildcard $(addsuffix /*.c,$(PROJ_DIRS))) $(wildcard $(addsuffix /*.cpp,$(PROJ_DIRS))) main.c
+SOURCES := $(wildcard $(addsuffix /*.c,$(PROJ_DIRS))) $(wildcard $(addsuffix /*.cpp,$(PROJ_DIRS)))
 
 OBJS := $(SOURCES:%=$(BUILD_DIR)/%.o)
 
