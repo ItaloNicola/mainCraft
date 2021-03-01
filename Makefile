@@ -36,8 +36,8 @@ $(BUILD_DIR)/%.s.o: %.s
 	$(AS) $(ASFLAGS) $(INCLUDES) -c $< -o $@
 
 debug: CFLAGS += -ggdb3 -Og -fstack-protector-all -fsanitize=address -fsanitize=undefined
-debug: CFLAGS += -fsanitize-recover=all -fno-omit-frame-pointer
-debug: LDFLAGS += -fsanitize=address -fsanitize=undefined -fsanitize-recover=all
+debug: CFLAGS += -fsanitize=leak -fsanitize-recover=all -fno-omit-frame-pointer
+debug: LDFLAGS += -fsanitize=address -fsanitize=leak -fsanitize=undefined -fsanitize-recover=all
 debug: LD_LIBS += -lasan
 debug: $(BUILD_DIR)/$(TARGET_EXEC)
 
@@ -52,6 +52,10 @@ shaders: shaders/main_shader.vert shaders/main_shader.frag
 .PHONY: run
 run:
 	$(BUILD_DIR)/$(TARGET_EXEC)
+
+.PHONY: tags
+tags:
+	ctags -R --c++-kinds=+p --extra=+q --fields=+iaS .
 
 .PHONY: clean
 clean:
