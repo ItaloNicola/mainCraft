@@ -21,7 +21,7 @@ endif
 all: $(BUILD_DIR)/$(TARGET_EXEC)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) shaders
-	$(CC) $(OBJS) $(LD_LIBS) $(LDFLAGS) -o $@ $(LDFLAGS)
+	$(CC) $(OBJS) $(LD_LIBS) $(LDFLAGS) -o $@
 
 $(BUILD_DIR)/%.c.o: %.c
 	$(MKDIR_P) $(dir $@)
